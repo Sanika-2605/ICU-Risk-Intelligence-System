@@ -25,14 +25,14 @@ def predict(**kwargs):
 
 
 @prediction_bp.route('/predictions', methods=['GET'])
-@role_required('doctor')
+@role_required('doctor', 'nurse', 'admin')
 def get_predictions(**kwargs):
     """List all predictions. (Doctor)"""
     return handle_get_predictions(**kwargs)
 
 
 @prediction_bp.route('/predictions/high-risk', methods=['GET'])
-@role_required('doctor')
+@role_required('doctor', 'nurse', 'admin')
 def get_high_risk(**kwargs):
     """List high-risk predictions only. (Doctor)"""
     return handle_get_high_risk(**kwargs)
