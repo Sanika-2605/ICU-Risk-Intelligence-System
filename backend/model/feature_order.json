@@ -1,0 +1,17 @@
+[
+  "heart_rate",
+  "temperature",
+  "spo2",
+  "respiratory_rate",
+  "blood_pressure_sys",
+  "fio2",
+  "peep",
+  "wbc_count",
+  "creatinine",
+  "lactate",
+  "glucose",
+  "platelet_count",
+  "ventilator_duration",
+  "catheter_duration",
+  "central_line_duration"
+]
