@@ -37,3 +37,10 @@ marshmallow==3.25.1
 
 # Date/Time Utilities
 python-dateutil==2.9.0
+
+# FastAPI backend (multicare-predict)
+fastapi>=0.110.0
+uvicorn>=0.29.0
+supabase>=2.0.0
+xgboost>=2.0.0
+shap>=0.44.0
