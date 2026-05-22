@@ -1,67 +1,46 @@
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { loginUser } from '../services/api';
 
-export const AuthContext = createContext(null);
+const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
+  const [user, setUser]     = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     try {
-      const savedToken = localStorage.getItem('token');
-      const savedUser = localStorage.getItem('user');
-      if (savedToken && savedUser) {
-        setToken(savedToken);
-        setUser(JSON.parse(savedUser));
-        console.log('[AuthContext] Loaded persisted session:', savedUser);
-      }
-    } catch (e) {
-      console.error('[AuthContext] Error loading persisted session:', e);
-    }
+      const saved = localStorage.getItem('user');
+      if (saved) setUser(JSON.parse(saved));
+    } catch { /* ignore corrupt data */ }
     setLoading(false);
   }, []);
 
-  const login = (userData, jwtToken) => {
-    console.log('[AuthContext] login called with user:', userData);
-    localStorage.setItem('token', jwtToken);
+  const login = async (email, password) => {
+    const response = await loginUser(email, password);
+    const userData = response.data.user;
     localStorage.setItem('user', JSON.stringify(userData));
-    setToken(jwtToken);
     setUser(userData);
+    const routes = { doctor: '/doctor/dashboard', nurse: '/nurse/dashboard', admin: '/admin/dashboard' };
+    navigate(routes[userData.role] || '/');
   };
 
   const logout = () => {
-    console.log('[AuthContext] logout called');
-    localStorage.removeItem('token');
     localStorage.removeItem('user');
-    setToken(null);
     setUser(null);
-  };
-
-  const getCurrentUser = () => {
-    if (user) return user;
-    const saved = localStorage.getItem('user');
-    return saved ? JSON.parse(saved) : null;
-  };
-
-  const isAuthenticated = () => {
-    const hasToken = !!(token || localStorage.getItem('token'));
-    console.log('[AuthContext] isAuthenticated checked:', hasToken);
-    return hasToken;
+    navigate('/login');
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      token, 
-      role: user?.role || null, 
-      loading, 
-      login, 
-      logout,
-      getCurrentUser,
-      isAuthenticated
-    }}>
-      {children}
+    <AuthContext.Provider value={{ user, login, logout, loading, role: user?.role || null }}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 }
+
+export const useAuth = () => {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
+};

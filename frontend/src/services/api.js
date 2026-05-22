@@ -1,29 +1,23 @@
 import axios from 'axios';
 
-const API = axios.create({
-  baseURL: '/api',
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
 });
 
-// Attach JWT token to every request
-API.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+api.interceptors.request.use((config) => {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user?.id) config.headers['x-user-id'] = user.id;
+  } catch { /* ignore */ }
+  return config;
+});
 
-// Handle 401 globally
-API.interceptors.response.use(
+api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      localStorage.removeItem('token');
+    if (error.response?.status === 401) {
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
@@ -31,4 +25,37 @@ API.interceptors.response.use(
   }
 );
 
-export default API;
+export default api;
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+export const loginUser = (email, password) =>
+  api.post('/api/auth/login', { email, password });
+
+// ── Patients ──────────────────────────────────────────────────────────────────
+export const getPatients = () => api.get('/api/patients');
+export const getPatient  = (id) => api.get(`/api/patients/${id}`);
+export const createPatient = (data) => api.post('/api/patients', data);
+
+// ── Predict ───────────────────────────────────────────────────────────────────
+export const runPrediction        = (data) => api.post('/api/predict', data);
+export const getPredictionHistory = (patientId) =>
+  api.get(`/api/predictions/${patientId}`);
+
+// ── Interventions ─────────────────────────────────────────────────────────────
+export const createIntervention = (data) => api.post('/api/interventions', data);
+export const getInterventions   = (patientId) =>
+  api.get('/api/interventions', { params: { patient_id: patientId } });
+
+// ── Nurse Tasks ───────────────────────────────────────────────────────────────
+export const getNurseTasks   = () => api.get('/api/nurse-tasks');
+export const updateNurseTask = (taskId, data) =>
+  api.put(`/api/nurse-tasks/${taskId}`, data);
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+export const getAdminStats = () => api.get('/api/admin/stats');
+
+// ── Admin Users ───────────────────────────────────────────────────────────────
+export const getAdminUsers = () => api.get('/api/admin/users');
+
+// ── Health ────────────────────────────────────────────────────────────────────
+export const checkHealth = () => api.get('/api/health');

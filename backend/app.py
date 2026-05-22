@@ -428,34 +428,66 @@ def create_intervention(data: InterventionCreate, x_user_id: str = Header(None))
     return intervention.data[0]
 
 
-# 9. Get interventions
+# 9. Get interventions (enriched with patient_code)
 @app.get("/api/interventions")
 def get_interventions(
     patient_id: Optional[str] = None, x_user_id: str = Header(None)
 ):
     current_user = get_current_user(x_user_id)
 
-    query = supabase.table("interventions").select("*")
+    interventions = supabase.table("interventions").select("*").execute().data
+
+    for inv in interventions:
+        patient = (
+            supabase.table("patients")
+            .select("patient_code")
+            .eq("id", inv["patient_id"])
+            .execute()
+        )
+        inv["patient_code"] = patient.data[0]["patient_code"] if patient.data else "Unknown"
+
     if patient_id:
-        query = query.eq("patient_id", patient_id)
+        interventions = [i for i in interventions if i["patient_id"] == patient_id]
+
     if current_user["role"] == "nurse":
-        query = query.neq("status", "completed")
+        interventions = [i for i in interventions if i["status"] != "completed"]
 
-    return query.execute().data
+    return interventions
 
 
-# 10. Get nurse tasks
+# 10. Get nurse tasks (enriched with intervention + patient_code)
 @app.get("/api/nurse-tasks")
 def get_nurse_tasks(x_user_id: str = Header(None)):
     get_current_user(x_user_id)
 
-    result = (
+    tasks = (
         supabase.table("nurse_tasks")
-        .select("*, interventions(*), patients(*)")
+        .select("*")
         .eq("task_status", "pending")
         .execute()
+        .data
     )
-    return result.data
+
+    enriched = []
+    for task in tasks:
+        inv = (
+            supabase.table("interventions")
+            .select("*")
+            .eq("id", task["intervention_id"])
+            .execute()
+        )
+        if inv.data:
+            task["intervention"] = inv.data[0]
+            patient = (
+                supabase.table("patients")
+                .select("patient_code")
+                .eq("id", task["patient_id"])
+                .execute()
+            )
+            task["patient_code"] = patient.data[0]["patient_code"] if patient.data else "Unknown"
+        enriched.append(task)
+
+    return enriched
 
 
 # 11. Update nurse task
@@ -507,6 +539,20 @@ def admin_stats(x_user_id: str = Header(None)):
         "interventions": {"pending": pending, "completed": completed},
         "total_predictions": len(predictions.data),
     }
+
+
+# 13. Admin — list all users
+@app.get("/api/admin/users")
+def get_all_users(x_user_id: str = Header(None)):
+    current_user = get_current_user(x_user_id)
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    result = (
+        supabase.table("users")
+        .select("id, name, email, role, created_at")
+        .execute()
+    )
+    return result.data
 
 
 # ─── Entry point ─────────────────────────────────────────────────────────────

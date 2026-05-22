@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import Spinner from './Spinner';
 
 export default function ProtectedRoute({ children, allowedRoles = [] }) {
-  const { isAuthenticated, role, loading } = useAuth();
+  const { user, role, loading } = useAuth();
 
   if (loading) {
     return (
@@ -13,8 +13,7 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
     );
   }
 
-  const isAuth = typeof isAuthenticated === 'function' ? isAuthenticated() : isAuthenticated;
-  if (!isAuth) {
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 
